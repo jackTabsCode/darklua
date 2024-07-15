@@ -91,7 +91,7 @@ impl AppendTextComment {
                     } else {
                         content
                             .lines()
-                            .map(|line| format!("-- {}", line))
+                            .map(|line| format!("--{}", line))
                             .collect::<Vec<_>>()
                             .join("\n")
                     }
