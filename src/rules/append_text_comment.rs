@@ -23,6 +23,7 @@ pub struct AppendTextComment {
     text_value: OnceLock<Result<String, String>>,
     text_content: TextContent,
     location: AppendLocation,
+    format: bool,
 }
 
 impl AppendTextComment {
@@ -31,6 +32,7 @@ impl AppendTextComment {
             text_value: Default::default(),
             text_content: TextContent::Value(value.into()),
             location: Default::default(),
+            format: true,
         }
     }
 
@@ -39,6 +41,7 @@ impl AppendTextComment {
             text_value: Default::default(),
             text_content: TextContent::FilePath(file_path.into()),
             location: Default::default(),
+            format: true,
         }
     }
 
@@ -61,27 +64,36 @@ impl AppendTextComment {
                 }
                 .map(|content| {
                     let content = content.trim();
-                    if content.is_empty() {
-                        "".to_owned()
-                    } else if content.contains('\n') {
-                        let mut equal_count = 0;
 
-                        let close_comment = loop {
-                            let close_comment = format!("]{}]", "=".repeat(equal_count));
-                            if !content.contains(&close_comment) {
-                                break close_comment;
-                            }
-                            equal_count += 1;
-                        };
+                    if self.format {
+                        if content.is_empty() {
+                            "".to_owned()
+                        } else if content.contains('\n') {
+                            let mut equal_count = 0;
 
-                        format!(
-                            "--[{}[\n{}\n{}",
-                            "=".repeat(equal_count),
-                            content,
-                            close_comment
-                        )
+                            let close_comment = loop {
+                                let close_comment = format!("]{}]", "=".repeat(equal_count));
+                                if !content.contains(&close_comment) {
+                                    break close_comment;
+                                }
+                                equal_count += 1;
+                            };
+
+                            format!(
+                                "--[{}[\n{}\n{}",
+                                "=".repeat(equal_count),
+                                content,
+                                close_comment
+                            )
+                        } else {
+                            format!("-- {}", content)
+                        }
                     } else {
-                        format!("-- {}", content)
+                        content
+                            .lines()
+                            .map(|line| format!("--{}", line))
+                            .collect::<Vec<_>>()
+                            .join("\n")
                     }
                 })
             })
@@ -422,6 +434,9 @@ impl RuleConfiguration for AppendTextComment {
                         }
                     };
                 }
+                "format" => {
+                    self.format = value.expect_bool(&key)?;
+                }
                 _ => return Err(RuleConfigurationError::UnexpectedProperty(key)),
             }
         }
@@ -455,6 +470,8 @@ impl RuleConfiguration for AppendTextComment {
                 );
             }
         }
+
+        properties.insert("format".to_owned(), self.format.into());
 
         properties
     }
